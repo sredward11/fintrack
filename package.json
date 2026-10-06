@@ -1,7 +1,7 @@
 {
   "name": "fintrack",
   "version": "1.0.0",
- "main": "expo-router/entry",
+  "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@hookform/resolvers": "^5.9.1",
@@ -10,9 +10,11 @@
     "@tanstack/react-query": "^5.104.1",
     "expo": "~57.0.26",
     "expo-constants": "~57.0.20",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-linking": "~57.0.11",
     "expo-router": "~57.0.24",
+    "expo-sharing": "~57.0.22",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

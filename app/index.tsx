@@ -4,6 +4,9 @@ import {
   ActivityIndicator, Alert, Button, Platform, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { supabase } from '../src/lib/supabase';
 
 type Tipo = 'income' | 'expense';
@@ -22,6 +25,21 @@ function dataValida(valor: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
   const data = new Date(`${valor}T12:00:00Z`);
   return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === valor;
+}
+function campoCsv(valor: string) {
+  // Prevent spreadsheet formula execution when opening exported user text.
+  const seguro = /^[=+@\-\t\r]/.test(valor) ? `'${valor}` : valor;
+  return `"${seguro.replace(/"/g, '""')}"`;
+}
+function montarCsv(itens: Lancamento[], categorias: Categoria[]) {
+  const linhas = ['Data;Tipo;Descricao;Categoria;Valor'];
+  for (const item of itens) {
+    const categoria = categorias.find((c) => c.id === item.category_id)?.name ?? '';
+    linhas.push([item.date, item.type === 'income' ? 'Receita' : 'Despesa',
+      item.description, categoria, Number(item.amount).toFixed(2).replace('.', ',')]
+      .map(campoCsv).join(';'));
+  }
+  return '﻿' + linhas.join('\r\n') + '\r\n';
 }
 function moeda(valor: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
@@ -102,10 +120,64 @@ export default function HomeScreen() {
     .reduce((total, item) => total + Number(item.amount), 0);
   const despesas = doMes.filter((item) => item.type === 'expense')
     .reduce((total, item) => total + Number(item.amount), 0);
+  const gastosPorCategoria = categorias.filter((c) => c.type === 'expense')
+    .map((c) => ({ id: c.id, nome: c.name,
+      valor: doMes.filter((t) => t.type === 'expense' && t.category_id === c.id)
+        .reduce((n, t) => n + Number(t.amount), 0) }))
+    .filter((c) => c.valor > 0);
+  const cores = ['#2563eb', '#ef4444', '#f59e0b', '#16a34a', '#9333ea', '#0891b2', '#db2777', '#64748b', '#84cc16'];
+  let angulo = 0;
+  const fatias = gastosPorCategoria.map((c, i) => {
+    const inicio = angulo;
+    const proporcao = despesas > 0 ? c.valor / despesas : 0;
+    angulo += proporcao;
+    return { ...c, inicio, proporcao, cor: cores[i % cores.length] };
+  });
   const exibidos = doMes.filter((item) =>
     (filtro === 'all' || item.type === filtro) &&
     item.description.toLocaleLowerCase('pt-BR').includes(busca.trim().toLocaleLowerCase('pt-BR'))
   );
+
+  async function exportarCsv() {
+    if (!usuarioId || !mesValido) return;
+    setOcupado(true); setMensagem('');
+    try {
+      // Fetch the entire selected month, not just the locally cached first page.
+      const inicio = `${mes}-01`;
+      const proximo = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 1))
+        .toISOString().slice(0, 10);
+      const itens: Lancamento[] = [];
+      for (let pagina = 0; ; pagina++) {
+        const { data: lote, error } = await supabase.from('transactions')
+          .select('id, description, amount, date, type, category_id')
+          .eq('user_id', usuarioId).gte('date', inicio).lt('date', proximo)
+          .order('date', { ascending: false }).order('id')
+          .range(pagina * 500, pagina * 500 + 499);
+        if (error) throw new Error(error.message);
+        itens.push(...((lote ?? []) as Lancamento[]));
+        if ((lote ?? []).length < 500) break;
+      }
+      const csv = montarCsv(itens, categorias);
+      const nome = `fintrack-${mes}.csv`;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = nome; document.body.appendChild(link);
+        link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        if (!(await Sharing.isAvailableAsync())) throw new Error('Compartilhamento indisponível neste dispositivo.');
+        const arquivo = new File(Paths.cache, nome);
+        arquivo.create({ overwrite: true });
+        arquivo.write(csv);
+        await Sharing.shareAsync(arquivo.uri, { mimeType: 'text/csv', dialogTitle: 'Exportar FinTrack' });
+      }
+      setMensagem(`CSV preparado: ${itens.length} lançamento(s) de ${mes}.`);
+    } catch (error) {
+      setMensagem(error instanceof Error ? error.message : 'Falha ao exportar CSV.');
+    } finally { setOcupado(false); }
+  }
 
   async function autenticar(modo: 'cadastro' | 'login') {
     setMensagem('');
@@ -235,6 +307,30 @@ export default function HomeScreen() {
               <Text>Saldo: {moeda(receitas - despesas)}</Text>
               <Text>Lançamentos no mês: {doMes.length}</Text>
             </View>
+          )}
+          {mesValido && (
+            <>
+              <Text style={styles.subtitulo}>Despesas por categoria</Text>
+              {despesas > 0 ? (
+                <View style={styles.cartao}>
+                  <Svg width={180} height={180} viewBox="0 0 180 180" accessibilityLabel="Gráfico de despesas por categoria">
+                    <Circle cx={90} cy={90} r={65} stroke="#e5e7eb" strokeWidth={26} fill="none" />
+                    {fatias.map((f) => (
+                      <Circle key={f.id} cx={90} cy={90} r={65} fill="none"
+                        stroke={f.cor} strokeWidth={26} strokeDasharray={`${f.proporcao * 408.407} 408.407`}
+                        strokeDashoffset={-f.inicio * 408.407}
+                        />
+                    ))}
+                  </Svg>
+                  {fatias.map((f) => (
+                    <Text key={f.id} style={{ color: f.cor }}>
+                      {f.nome}: {moeda(f.valor)} ({Math.round(f.proporcao * 100)}%)
+                    </Text>
+                  ))}
+                </View>
+              ) : <Text>Sem despesas neste mês.</Text>}
+              <Button title="Exportar CSV do mês" onPress={() => void exportarCsv()} disabled={ocupado} />
+            </>
           )}
 
           <Text style={styles.subtitulo}>{editandoId ? 'Editar lançamento' : 'Novo lançamento'}</Text>

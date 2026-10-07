@@ -1,3 +1,4 @@
+import TesteTokenBancario from '../src/components/TesteTokenBancario';
 import LancamentosPorDia from '../src/components/LancamentosPorDia';
 import { dataValida, montarCsv, resumoMensal, valorEmCentavos } from '../src/domain/finance';
 import { useEffect, useMemo, useState } from 'react';
@@ -274,6 +275,7 @@ export default function HomeScreen() {
         <>
           <Text>Conectado: {session.user.email}</Text>
           <Text>Categorias visíveis: {categorias.length}</Text>
+          <TesteTokenBancario />
           <Button title="Sair" onPress={() => void sair()} disabled={ocupado} />
 
           <Text style={styles.subtitulo}>Painel mensal</Text>

@@ -1,3 +1,4 @@
+import LancamentosPorDia from '../src/components/LancamentosPorDia';
 import { dataValida, montarCsv, resumoMensal, valorEmCentavos } from '../src/domain/finance';
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
@@ -346,18 +347,8 @@ export default function HomeScreen() {
           </View>
           <Text>Filtro: {filtro === 'all' ? 'Todos' : filtro === 'income' ? 'Receitas' : 'Despesas'}</Text>
           {exibidos.length === 0 && <Text>Nenhum lançamento para este filtro e mês.</Text>}
-          {exibidos.map((item) => (
-            <View key={item.id} style={styles.cartao}>
-              <Text style={styles.descricao}>{item.description}</Text>
-              <Text>{item.type === 'income' ? 'Receita' : 'Despesa'} · {item.date}</Text>
-              <Text>{categorias.find((cat) => cat.id === item.category_id)?.name ?? 'Categoria não encontrada'}</Text>
-              <Text>{moeda(Number(item.amount))}</Text>
-              <View style={styles.linha}>
-                <Button title="Editar" onPress={() => iniciarEdicao(item)} disabled={ocupado} />
-                <Button title="Excluir" onPress={() => confirmarExclusao(item)} disabled={ocupado} />
-              </View>
-            </View>
-          ))}
+          <LancamentosPorDia itens={exibidos} categorias={categorias}
+            ocupado={ocupado} onEditar={iniciarEdicao} onExcluir={confirmarExclusao} />
         </>
       ) : (
         <>

@@ -1,3 +1,4 @@
+import { dataValida, montarCsv, resumoMensal, valorEmCentavos } from '../src/domain/finance';
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import {
@@ -20,26 +21,6 @@ function hojeLocal() {
   const agora = new Date();
   return new Date(agora.getTime() - agora.getTimezoneOffset() * 60000)
     .toISOString().slice(0, 10);
-}
-function dataValida(valor: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
-  const data = new Date(`${valor}T12:00:00Z`);
-  return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === valor;
-}
-function campoCsv(valor: string) {
-  // Prevent spreadsheet formula execution when opening exported user text.
-  const seguro = /^[=+@\-\t\r]/.test(valor) ? `'${valor}` : valor;
-  return `"${seguro.replace(/"/g, '""')}"`;
-}
-function montarCsv(itens: Lancamento[], categorias: Categoria[]) {
-  const linhas = ['Data;Tipo;Descricao;Categoria;Valor'];
-  for (const item of itens) {
-    const categoria = categorias.find((c) => c.id === item.category_id)?.name ?? '';
-    linhas.push([item.date, item.type === 'income' ? 'Receita' : 'Despesa',
-      item.description, categoria, Number(item.amount).toFixed(2).replace('.', ',')]
-      .map(campoCsv).join(';'));
-  }
-  return '﻿' + linhas.join('\r\n') + '\r\n';
 }
 function moeda(valor: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
@@ -116,10 +97,7 @@ export default function HomeScreen() {
   const doMes = useMemo(() => mesValido
     ? lancamentos.filter((item) => item.date.slice(0, 7) === mes) : [],
     [lancamentos, mes, mesValido]);
-  const receitas = doMes.filter((item) => item.type === 'income')
-    .reduce((total, item) => total + Number(item.amount), 0);
-  const despesas = doMes.filter((item) => item.type === 'expense')
-    .reduce((total, item) => total + Number(item.amount), 0);
+  const { receitas, despesas } = resumoMensal(lancamentos, mes);
   const gastosPorCategoria = categorias.filter((c) => c.type === 'expense')
     .map((c) => ({ id: c.id, nome: c.name,
       valor: doMes.filter((t) => t.type === 'expense' && t.category_id === c.id)
@@ -219,12 +197,12 @@ export default function HomeScreen() {
     if (!usuarioId) { setMensagem('Entre na sua conta antes de salvar.'); return; }
     const texto = descricao.trim();
     const valorTexto = valor.trim();
-    const numero = Number(valorTexto.replace(',', '.'));
+    const centavos = valorEmCentavos(valorTexto);
+    const numero = (centavos ?? 0) / 100;
     if (texto.length < 2 || texto.length > 80) {
       setMensagem('A descrição deve ter entre 2 e 80 caracteres.'); return;
     }
-    if (!/^\d+(?:[.,]\d{1,2})?$/.test(valorTexto) ||
-        !Number.isFinite(numero) || numero <= 0 || numero > 9999999999.99) {
+    if (centavos === null) {
       setMensagem('Informe um valor positivo com até duas casas decimais.'); return;
     }
     if (!dataValida(data)) { setMensagem('Informe uma data válida AAAA-MM-DD.'); return; }

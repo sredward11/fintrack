@@ -1,6 +1,8 @@
 export type Tipo = 'income' | 'expense';
 export type Categoria = { id: string; name: string; type: Tipo };
-export type Lancamento = { id: string; description: string; amount: number; date: string; type: Tipo; category_id: string };
+export type Lancamento = { id: string; description: string; amount: number; date: string; type: Tipo; category_id: string
+  source?: 'manual' | 'open_finance';
+  account_name?: string | null; };
 export function dataValida(valor: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
   const data = new Date(`${valor}T12:00:00Z`);

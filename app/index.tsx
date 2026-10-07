@@ -17,6 +17,8 @@ type Categoria = { id: string; name: string; type: Tipo };
 type Lancamento = {
   id: string; description: string; amount: number; date: string;
   type: Tipo; category_id: string;
+  source?: 'manual' | 'open_finance';
+  account_name?: string | null;
 };
 
 function hojeLocal() {
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   const [valor, setValor] = useState('');
   const [data, setData] = useState(hojeLocal());
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editandoImportado, setEditandoImportado] = useState(false);
   const [mes, setMes] = useState(hojeLocal().slice(0, 7));
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState<'all' | Tipo>('all');
@@ -76,7 +79,7 @@ export default function HomeScreen() {
       const [cats, trans] = await Promise.all([
         supabase.from('categories').select('id, name, type').order('name'),
         supabase.from('transactions')
-          .select('id, description, amount, date, type, category_id')
+          .select('id, description, amount, date, type, category_id, source, account_name')
           .eq('user_id', usuarioId!).order('date', { ascending: false })
           .order('created_at', { ascending: false }),
       ]);
@@ -129,7 +132,7 @@ export default function HomeScreen() {
       const itens: Lancamento[] = [];
       for (let pagina = 0; ; pagina++) {
         const { data: lote, error } = await supabase.from('transactions')
-          .select('id, description, amount, date, type, category_id')
+          .select('id, description, amount, date, type, category_id, source, account_name')
           .eq('user_id', usuarioId).gte('date', inicio).lt('date', proximo)
           .order('date', { ascending: false }).order('id')
           .range(pagina * 500, pagina * 500 + 499);
@@ -178,17 +181,17 @@ export default function HomeScreen() {
   }
 
   function cancelarEdicao() {
-    setEditandoId(null); setDescricao(''); setValor('');
+    setEditandoId(null); setEditandoImportado(false); setDescricao(''); setValor('');
     setData(hojeLocal()); setCategoriaId(''); setMensagem('');
   }
   function iniciarEdicao(item: Lancamento) {
-    setEditandoId(item.id); setTipo(item.type); setCategoriaId(item.category_id);
+    setEditandoId(item.id); setEditandoImportado(item.source === 'open_finance'); setTipo(item.type); setCategoriaId(item.category_id);
     setDescricao(item.description); setValor(String(item.amount).replace('.', ','));
     setData(item.date); setMensagem(`Editando: ${item.description}`);
   }
   async function atualizarLista(id: string) {
     const { data: lista, error } = await supabase.from('transactions')
-      .select('id, description, amount, date, type, category_id')
+      .select('id, description, amount, date, type, category_id, source, account_name')
       .eq('user_id', id).order('date', { ascending: false })
       .order('created_at', { ascending: false });
     if (error) throw new Error(`Operação feita, mas falhou a atualização da lista: ${error.message}`);
@@ -213,8 +216,11 @@ export default function HomeScreen() {
     try {
       const campos = { category_id: categoriaSelecionada, type: tipo,
         description: texto, amount: numero, date: data };
+      const camposEdicao = editandoImportado
+        ? { category_id: categoriaSelecionada }
+        : campos;
       const resultado = editandoId
-        ? await supabase.from('transactions').update(campos)
+        ? await supabase.from('transactions').update(camposEdicao)
             .eq('id', editandoId).eq('user_id', usuarioId).select('id')
         : await supabase.from('transactions').insert({ ...campos, user_id: usuarioId }).select('id');
       if (resultado.error) { setMensagem(resultado.error.message); return; }
@@ -314,18 +320,18 @@ export default function HomeScreen() {
             </>
           )}
 
-          <Text style={styles.subtitulo}>{editandoId ? 'Editar lançamento' : 'Novo lançamento'}</Text>
+          <Text style={styles.subtitulo}>{editandoImportado ? 'Alterar categoria do importado' : editandoId ? 'Editar lançamento' : 'Novo lançamento'}</Text>
           <View style={styles.linha}>
-            <Button title="Despesa" onPress={() => { setTipo('expense'); setCategoriaId(''); }} disabled={ocupado} />
-            <Button title="Receita" onPress={() => { setTipo('income'); setCategoriaId(''); }} disabled={ocupado} />
+            <Button title="Despesa" onPress={() => { setTipo('expense'); setCategoriaId(''); }} disabled={ocupado || editandoImportado} />
+            <Button title="Receita" onPress={() => { setTipo('income'); setCategoriaId(''); }} disabled={ocupado || editandoImportado} />
           </View>
           <Text>Tipo selecionado: {tipo === 'expense' ? 'Despesa' : 'Receita'}</Text>
           <TextInput style={styles.campo} placeholder="Descrição" value={descricao}
-            onChangeText={setDescricao} maxLength={80} />
+            onChangeText={setDescricao} maxLength={80} editable={!editandoImportado} />
           <TextInput style={styles.campo} placeholder="Valor, por exemplo: 25,90"
-            keyboardType="decimal-pad" value={valor} onChangeText={setValor} />
+            keyboardType="decimal-pad" value={valor} onChangeText={setValor} editable={!editandoImportado} />
           <TextInput style={styles.campo} placeholder="Data: AAAA-MM-DD" value={data}
-            onChangeText={setData} />
+            onChangeText={setData} editable={!editandoImportado} />
           <Text style={styles.rotulo}>Categoria:</Text>
           <View style={styles.categorias}>
             {categoriasDoTipo.map((item) => (
@@ -335,7 +341,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </View>
-          <Button title={editandoId ? 'Salvar alterações' : 'Salvar lançamento'}
+          <Button title={editandoImportado ? 'Salvar categoria' : editandoId ? 'Salvar alterações' : 'Salvar lançamento'}
             onPress={() => void salvarLancamento()} disabled={ocupado || categorias.length === 0} />
           {editandoId && <Button title="Cancelar edição" onPress={cancelarEdicao} disabled={ocupado} />}
 
@@ -380,3 +386,4 @@ const styles = StyleSheet.create({
   descricao: { fontWeight: 'bold' },
   mensagem: { textAlign: 'center', marginTop: 8 },
 });
+

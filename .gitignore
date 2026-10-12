@@ -41,3 +41,5 @@ yarn-error.*
 /android
 
 .env
+# Temporarios do Supabase
+supabase/.temp/

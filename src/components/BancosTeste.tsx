@@ -1,5 +1,7 @@
+import Button from './ActionButton';
+import { colors } from '../theme';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Platform, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import WidgetBanco from './WidgetBanco';
@@ -71,25 +73,33 @@ export default function BancosTeste() {
       { text: 'Desconectar', style: 'destructive', onPress: run },
     ]);
   }
-  return <View style={{ width: '100%', maxWidth: 500, gap: 8, paddingVertical: 12 }}>
-    <Text style={{ fontWeight: 'bold' }}>Contas bancárias de teste</Text>
-    <Text>Somente leitura. Use apenas Sandbox / Pluggy Bank nesta etapa.</Text>
-    {connections.map((c) => <View key={c.id} style={{ borderWidth: 1, borderColor: '#ddd', padding: 8, gap: 4 }}>
-      <Text>{c.connector_name}</Text><Text>Última sincronização: {c.last_synced_at ?? 'nunca'}</Text>
+  return <View style={styles.panel}>
+    <Text style={styles.title}>Contas bancárias de teste</Text>
+    <Text style={{ color: colors.ink }}>Somente leitura. Use apenas Sandbox / Pluggy Bank nesta etapa.</Text>
+    {connections.map((c) => <View key={c.id} style={styles.connection}>
+      <Text style={{ color: colors.ink }}>{c.connector_name}</Text><Text style={{ color: colors.ink }}>Última sincronização: {c.last_synced_at ?? 'nunca'}</Text>
       <Button title="Sincronizar novamente" disabled={busy} onPress={() => void sync(c.pluggy_item_id)} />
       <Button title="Desconectar e apagar importados" disabled={busy} onPress={() => confirmDisconnect(c)} />
     </View>)}
     {connections.length === 0 && <>
       <Button title={busy ? 'Preparando...' : 'Conectar Pluggy Bank'} disabled={busy || !!token}
         onPress={() => void openWidget()} />
-      <TextInput value={itemId} onChangeText={setItemId} autoCapitalize="none"
-        placeholder="Cole aqui o Item ID já criado" style={{ borderWidth: 1, borderColor: '#999', padding: 10 }} />
+      <TextInput placeholderTextColor={colors.muted} value={itemId} onChangeText={setItemId} autoCapitalize="none"
+        placeholder="Cole aqui o Item ID já criado" style={styles.input} />
       <Button title="Salvar conexão e sincronizar" disabled={busy} onPress={() => void sync()} />
     </>}
-    {!!message && <Text selectable>{message}</Text>}
+    {!!message && <Text selectable style={{ color: colors.ink }}>{message}</Text>}
     {token && <WidgetBanco token={token}
       onSuccess={(id) => { setItemId(id); setToken(null); setMessage('Conexão criada. Clique em Salvar conexão e sincronizar.'); }}
       onClose={() => setToken(null)}
       onError={(m) => { setToken(null); setMessage(m); }} />}
   </View>;
 }
+
+
+const styles = StyleSheet.create({
+ panel: { width: '100%', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 20, gap: 12, marginTop: 8 },
+ title: { color: colors.ink, fontSize: 18, fontWeight: '700' },
+ connection: { backgroundColor: colors.background, borderRadius: 12, padding: 16, gap: 10 },
+ input: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, color: colors.ink },
+});

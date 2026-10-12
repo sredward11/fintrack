@@ -1,4 +1,6 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
+import Button from './ActionButton';
+import { colors } from '../theme';
+import { StyleSheet, Text, View } from 'react-native';
 import type { Categoria, Lancamento } from '../domain/finance';
 import { agruparPorDia, formatarDia } from '../domain/grouping';
 
@@ -36,9 +38,9 @@ export default function LancamentosPorDia({
             return (
               <View key={item.id} style={styles.cartao}>
                 <Text style={styles.descricao}>{item.description}</Text>
-                <Text>{item.type === 'income' ? 'Receita' : 'Despesa'}</Text>
-                <Text>{categoria}</Text>
-                <Text>{moeda(Number(item.amount))}</Text>
+                <Text style={{ color: colors.ink }}>{item.type === 'income' ? 'Receita' : 'Despesa'}</Text>
+                <Text style={{ color: colors.ink }}>{categoria}</Text>
+                <Text style={[styles.amount, { color: item.type === 'income' ? colors.income : colors.expense }]}>{item.type === 'income' ? '+ ' : '− '}{moeda(Number(item.amount))}</Text>
 
                 {importado ? (
                   <View style={styles.origem}>
@@ -76,25 +78,10 @@ export default function LancamentosPorDia({
 }
 
 const styles = StyleSheet.create({
-  lista: { width: '100%', maxWidth: 500, gap: 16 },
-  grupo: { gap: 8 },
-  dia: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
-  cartao: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    gap: 4,
-  },
-  descricao: { fontWeight: 'bold' },
-  manual: { color: '#64748b', fontSize: 12 },
-  origem: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#2563eb',
-    paddingLeft: 8,
-    marginTop: 4,
-  },
-  origemTitulo: { color: '#2563eb', fontWeight: 'bold', fontSize: 12 },
-  origemTexto: { color: '#64748b', fontSize: 12 },
-  botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 6 },
+ lista: { width: '100%', gap: 22 }, grupo: { gap: 10 }, dia: { fontSize: 14, fontWeight: '700', color: colors.muted, marginTop: 8 },
+ cartao: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 20, gap: 7 },
+ descricao: { fontWeight: '700', fontSize: 17, color: colors.ink }, amount: { fontWeight: '700', fontSize: 24, marginVertical: 5 },
+ manual: { color: colors.muted, fontSize: 12 }, origem: { borderLeftWidth: 3, borderLeftColor: colors.primary, paddingLeft: 10, marginTop: 4 },
+ origemTitulo: { color: colors.primary, fontWeight: '700', fontSize: 12 }, origemTexto: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+ botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
 });

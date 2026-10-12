@@ -1,10 +1,12 @@
+import Button from '../src/components/ActionButton';
+import { colors } from '../src/theme';
 import BancosTeste from '../src/components/BancosTeste';
 import LancamentosPorDia from '../src/components/LancamentosPorDia';
 import { dataValida, montarCsv, resumoMensal, valorEmCentavos } from '../src/domain/finance';
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import {
-  ActivityIndicator, Alert, Button, Platform, ScrollView,
+  ActivityIndicator, Alert, Platform, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -108,7 +110,7 @@ export default function HomeScreen() {
       valor: doMes.filter((t) => t.type === 'expense' && t.category_id === c.id)
         .reduce((n, t) => n + Number(t.amount), 0) }))
     .filter((c) => c.valor > 0);
-  const cores = ['#2563eb', '#ef4444', '#f59e0b', '#16a34a', '#9333ea', '#0891b2', '#db2777', '#64748b', '#84cc16'];
+  const cores = ['#56D9F5', '#FF929C', '#FFD278', '#60E0AE', '#C4A0FF', '#83B5FF', '#F5A2DD', '#A7B8D0', '#B6E57D'];
   let angulo = 0;
   const fatias = gastosPorCategoria.map((c, i) => {
     const inicio = angulo;
@@ -275,25 +277,26 @@ export default function HomeScreen() {
 
   if (iniciando) return <View style={styles.container}><ActivityIndicator /></View>;
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.titulo}>FinTrack</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.brand}><Text style={styles.eyebrow}>FINANÇAS PESSOAIS</Text><Text style={styles.titulo}>FinTrack</Text><Text style={styles.tagline}>Seu dinheiro, com mais clareza.</Text></View>
       {session ? (
         <>
-          <Text>Conectado: {session.user.email}</Text>
-          <Text>Categorias visíveis: {categorias.length}</Text>
+          <Text style={styles.hint}>Conectado: {session.user.email}</Text>
+          <Text style={{ color: colors.ink }}>Categorias visíveis: {categorias.length}</Text>
           <BancosTeste />
           <Button title="Sair" onPress={() => void sair()} disabled={ocupado} />
 
           <Text style={styles.subtitulo}>Painel mensal</Text>
-          <TextInput style={styles.campo} placeholder="Mês: AAAA-MM" value={mes}
+          <Text style={styles.rotulo}>Período</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Mês: AAAA-MM" value={mes}
             onChangeText={setMes} maxLength={7} />
-          {!mesValido ? <Text>Informe um mês válido no formato AAAA-MM.</Text> : (
-            <View style={styles.cartao}>
-              <Text>Receitas: {moeda(receitas)}</Text>
-              <Text>Despesas: {moeda(despesas)}</Text>
-              <Text>Saldo: {moeda(receitas - despesas)}</Text>
-              <Text>Lançamentos no mês: {doMes.length}</Text>
-            </View>
+          {!mesValido ? <Text style={{ color: colors.ink }}>Informe um mês válido no formato AAAA-MM.</Text> : (
+            <View style={styles.summary}>
+<View style={styles.metric}><Text style={styles.hint}>Receitas</Text><Text style={[styles.metricValue, {color: colors.income}]}>{moeda(receitas)}</Text></View>
+<View style={styles.metric}><Text style={styles.hint}>Despesas</Text><Text style={[styles.metricValue, {color: colors.expense}]}>{moeda(despesas)}</Text></View>
+<View style={styles.metric}><Text style={styles.hint}>Saldo do mês</Text><Text style={styles.metricValue}>{moeda(receitas - despesas)}</Text></View>
+<View style={styles.metric}><Text style={styles.hint}>Lançamentos</Text><Text style={styles.metricValue}>{doMes.length}</Text></View>
+</View>
           )}
           {mesValido && (
             <>
@@ -301,7 +304,7 @@ export default function HomeScreen() {
               {despesas > 0 ? (
                 <View style={styles.cartao}>
                   <Svg width={180} height={180} viewBox="0 0 180 180" accessibilityLabel="Gráfico de despesas por categoria">
-                    <Circle cx={90} cy={90} r={65} stroke="#e5e7eb" strokeWidth={26} fill="none" />
+                    <Circle cx={90} cy={90} r={65} stroke={colors.border} strokeWidth={26} fill="none" />
                     {fatias.map((f) => (
                       <Circle key={f.id} cx={90} cy={90} r={65} fill="none"
                         stroke={f.cor} strokeWidth={26} strokeDasharray={`${f.proporcao * 408.407} 408.407`}
@@ -315,7 +318,7 @@ export default function HomeScreen() {
                     </Text>
                   ))}
                 </View>
-              ) : <Text>Sem despesas neste mês.</Text>}
+              ) : <Text style={{ color: colors.ink }}>Sem despesas neste mês.</Text>}
               <Button title="Exportar CSV do mês" onPress={() => void exportarCsv()} disabled={ocupado} />
             </>
           )}
@@ -325,12 +328,15 @@ export default function HomeScreen() {
             <Button title="Despesa" onPress={() => { setTipo('expense'); setCategoriaId(''); }} disabled={ocupado || editandoImportado} />
             <Button title="Receita" onPress={() => { setTipo('income'); setCategoriaId(''); }} disabled={ocupado || editandoImportado} />
           </View>
-          <Text>Tipo selecionado: {tipo === 'expense' ? 'Despesa' : 'Receita'}</Text>
-          <TextInput style={styles.campo} placeholder="Descrição" value={descricao}
+          <Text style={{ color: colors.ink }}>Tipo selecionado: {tipo === 'expense' ? 'Despesa' : 'Receita'}</Text>
+          <Text style={styles.rotulo}>Descrição</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Descrição" value={descricao}
             onChangeText={setDescricao} maxLength={80} editable={!editandoImportado} />
-          <TextInput style={styles.campo} placeholder="Valor, por exemplo: 25,90"
+          <Text style={styles.rotulo}>Valor (R$)</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Valor, por exemplo: 25,90"
             keyboardType="decimal-pad" value={valor} onChangeText={setValor} editable={!editandoImportado} />
-          <TextInput style={styles.campo} placeholder="Data: AAAA-MM-DD" value={data}
+          <Text style={styles.rotulo}>Data (AAAA-MM-DD)</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Data: AAAA-MM-DD" value={data}
             onChangeText={setData} editable={!editandoImportado} />
           <Text style={styles.rotulo}>Categoria:</Text>
           <View style={styles.categorias}>
@@ -346,23 +352,26 @@ export default function HomeScreen() {
           {editandoId && <Button title="Cancelar edição" onPress={cancelarEdicao} disabled={ocupado} />}
 
           <Text style={styles.subtitulo}>Meus lançamentos no mês</Text>
-          <TextInput style={styles.campo} placeholder="Buscar pela descrição"
+          <Text style={styles.rotulo}>Buscar lançamentos</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Buscar pela descrição"
             value={busca} onChangeText={setBusca} />
           <View style={styles.linha}>
             <Button title="Todos" onPress={() => setFiltro('all')} />
             <Button title="Receitas" onPress={() => setFiltro('income')} />
             <Button title="Despesas" onPress={() => setFiltro('expense')} />
           </View>
-          <Text>Filtro: {filtro === 'all' ? 'Todos' : filtro === 'income' ? 'Receitas' : 'Despesas'}</Text>
-          {exibidos.length === 0 && <Text>Nenhum lançamento para este filtro e mês.</Text>}
+          <Text style={{ color: colors.ink }}>Filtro: {filtro === 'all' ? 'Todos' : filtro === 'income' ? 'Receitas' : 'Despesas'}</Text>
+          {exibidos.length === 0 && <Text style={{ color: colors.ink }}>Nenhum lançamento para este filtro e mês.</Text>}
           <LancamentosPorDia itens={exibidos} categorias={categorias}
             ocupado={ocupado} onEditar={iniciarEdicao} onExcluir={confirmarExclusao} />
         </>
       ) : (
         <>
-          <TextInput style={styles.campo} placeholder="E-mail" autoCapitalize="none"
+          <Text style={styles.rotulo}>E-mail</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="E-mail" autoCapitalize="none"
             keyboardType="email-address" value={email} onChangeText={setEmail} />
-          <TextInput style={styles.campo} placeholder="Senha" secureTextEntry
+          <Text style={styles.rotulo}>Senha</Text>
+<TextInput placeholderTextColor={colors.muted} style={styles.campo} placeholder="Senha" secureTextEntry
             value={senha} onChangeText={setSenha} />
           <Button title="Criar conta" onPress={() => void autenticar('cadastro')} disabled={ocupado} />
           <Button title="Entrar" onPress={() => void autenticar('login')} disabled={ocupado} />
@@ -374,16 +383,18 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  titulo: { fontSize: 26, fontWeight: 'bold' },
-  subtitulo: { fontSize: 20, fontWeight: 'bold', marginTop: 18 },
-  rotulo: { fontWeight: 'bold', alignSelf: 'flex-start' },
-  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
-  campo: { width: '100%', maxWidth: 360, borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12 },
-  categorias: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, maxWidth: 500 },
-  botaoCategoria: { marginBottom: 4 },
-  cartao: { width: '100%', maxWidth: 500, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, gap: 4 },
-  descricao: { fontWeight: 'bold' },
-  mensagem: { textAlign: 'center', marginTop: 8 },
+  page: { flex: 1, backgroundColor: colors.background },
+  container: { flexGrow: 1, width: '100%', maxWidth: 960, alignSelf: 'center', padding: 24, paddingTop: 48, paddingBottom: 64, gap: 14 },
+  brand: { paddingVertical: 20, paddingHorizontal: 22, gap: 7, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 4, borderLeftColor: colors.primary, borderRadius: 18 }, eyebrow: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 2 },
+  titulo: { fontSize: 40, fontWeight: '800', color: colors.ink, letterSpacing: -1 }, tagline: { fontSize: 16, color: colors.muted },
+  hint: { color: colors.muted, fontSize: 13 }, subtitulo: { fontSize: 22, fontWeight: '700', marginTop: 24, color: colors.ink },
+  rotulo: { fontWeight: '600', fontSize: 13, color: colors.muted, marginTop: 4 },
+  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  campo: { width: '100%', minHeight: 50, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, color: colors.ink, fontSize: 16 },
+  categorias: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, botaoCategoria: { marginBottom: 2 },
+  cartao: { width: '100%', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 22, gap: 10, alignItems: 'center' },
+  summary: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  metric: { flexGrow: 1, flexBasis: 180, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 20, gap: 10, borderTopWidth: 3, borderTopColor: colors.primary },
+  metricValue: { color: colors.ink, fontSize: 26, fontWeight: '700' }, descricao: { fontWeight: 'bold', color: colors.ink },
+  mensagem: { color: colors.ink, backgroundColor: colors.soft, borderRadius: 12, padding: 16, fontSize: 14, lineHeight: 22, marginTop: 8 },
 });
-
